@@ -43,6 +43,9 @@ def process_text():
     roman = roman_paren if numbering.get() == '(i)' else roman_close
     last_sep = 'y' if spanish.get() else 'and'
 
+    if lowercase_subsequent.get():
+        items = [items[0]] + [item[0].lower() + item[1:] if item else item for item in items[1:]]
+
     out_sep = output_separator.get()
     if out_sep == '\n':
         join = '\n'
@@ -129,6 +132,12 @@ spanish = tk.BooleanVar(value=False)
 ttk.Checkbutton(options_frame, text='Spanish  (use "y" instead of "and")',
                 variable=spanish).grid(
     row=3, column=0, columnspan=4, sticky='w', padx=4, pady=3)
+
+# Lowercase subsequent checkbox
+lowercase_subsequent = tk.BooleanVar(value=False)
+ttk.Checkbutton(options_frame, text='Lowercase first letter of points (ii) onwards',
+                variable=lowercase_subsequent).grid(
+    row=4, column=0, columnspan=4, sticky='w', padx=4, pady=3)
 
 # ── Buttons ────────────────────────────────────────────────────────────────────
 btn_frame = ttk.Frame(root)

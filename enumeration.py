@@ -1,96 +1,156 @@
 '''
-This code enumerates items within text (depending on the desired format) such as "following: i) Peru; ii) Colombia"
-It takes text separated by commas "Peru, Colombia and Ecuador" and enumerates it automatically
+This code enumerates items within text (depending on the desired format) such as
+"following: i) Peru; ii) Colombia"
+
+It accepts text separated by commas, semicolons, or newlines, and enumerates
+each item automatically with Roman numerals in the chosen format.
 '''
-import win32clipboard, re
-import PySimpleGUI as sg
-import help_file
+import re
+import tkinter as tk
+from tkinter import ttk, messagebox
 
-'''
-Initial parameters
-'''
-
-
-def make_window():
-
-    '''
-    Pop-up window to input data
-    '''
-
-    sg.theme('Topanga')  # Add some color to the window
-
-    # Parameters
-    num_list = ['(i)', 'i)']
-    separator_list = [';', ',']
-
-    # Very basic window.  Return values using keys
-    layout = [
-        [sg.Text('Enter your preferred format.'
-                 '\nDefault: (i) Peru; (ii) Ecuador; and (iii) Argentina')],
-        [sg.Checkbox('Spanish', default=False, key='-Spanish-')],
-        [sg.Text('Numbering format', size=(15, 1)), sg.InputCombo((num_list), default_value=num_list[0], key='-Numbering-', size=(5, 1))],
-        [sg.Text('Separator', size=(15, 1)), sg.InputCombo((separator_list), default_value=separator_list[0], key='-Separator-', size=(5,1))],
-        [sg.Submit(), sg.Cancel()]
-    ]
-
-    window = sg.Window('Enumeration format', layout)
-    event, values = window.read()
-    if event == 'Cancel': exit()
-    window.close()
-
-    return event, values
+# Roman numeral sequences
+roman_paren = ['(i)', '(ii)', '(iii)', '(iv)', '(v)', '(vi)', '(vii)', '(viii)',
+               '(ix)', '(x)', '(xi)', '(xii)', '(xiii)']
+roman_close = ['i)', 'ii)', 'iii)', 'iv)', 'v)', 'vi)', 'vii)', 'viii)',
+               'ix)', 'x)', 'xi)', 'xii)', 'xiii)']
 
 
-'''
-General Parameters
-'''
-help_file.window_title('Elements\' enumeration') # Window title
+def process_text():
+    """Read input, split by chosen separator, enumerate, and display result."""
+    raw = input_text.get('1.0', tk.END).strip()
+    if not raw:
+        messagebox.showwarning('Warning', 'Please enter some text.')
+        return
 
-# Roman numbers
-roman_1 = ['i)', 'ii)', 'iii)', 'iv)', 'v)', 'vi)', 'vii)', 'viii)', 'ix)', 'x)',
-         'xi)', 'xii)', 'xiii)']
-roman_2 = ['(i)', '(ii)', '(iii)', '(iv)', '(v)', '(vi)', '(vii)', '(viii)', '(ix)', '(x)',
-         '(xi)', '(xii)', '(xiii)']
+    # Split input
+    in_sep = input_separator.get()
+    if in_sep == ',':
+        items = re.split(r',\s*', raw)
+    elif in_sep == ';':
+        items = re.split(r';\s*', raw)
+    else:  # newline
+        items = raw.splitlines()
 
-while True:
-    # Retrieve parameters
-    event, values = make_window()
-    if values['-Numbering-']=='i)':
-        roman = roman_1
-    elif values['-Numbering-']=='(i)':
-        roman = roman_2
-    separator = values['-Separator-']
-    if values['-Spanish-']:
-        last_separator = 'y'
+    items = [item.strip() for item in items if item.strip()]
+    if not items:
+        messagebox.showwarning('Warning', 'No items found after splitting.')
+        return
+    if len(items) > len(roman_paren):
+        messagebox.showwarning('Warning', f'Too many items (max {len(roman_paren)}).')
+        return
+
+    roman = roman_paren if numbering.get() == '(i)' else roman_close
+    last_sep = 'y' if spanish.get() else 'and'
+
+    out_sep = output_separator.get()
+    if out_sep == '\n':
+        join = '\n'
     else:
-        last_separator = 'and'
+        join = f'{out_sep} '
 
-    # Open clipboard and retrieve data
-    win32clipboard.OpenClipboard()
-    text = win32clipboard.GetClipboardData()
+    if len(items) == 1:
+        result = f'{roman[0]} {items[0]}'
+    else:
+        parts = [f'{roman[i]} {item}' for i, item in enumerate(items[:-1])]
+        last_part = f'{last_sep} {roman[len(items) - 1]} {items[-1]}'
+        result = join.join(parts) + join + last_part
 
-    # If the text contains commas, split the items and recompile them with the roman numbers
-    if re.search(',',text):
-        items = re.split(', ', text)
-        new_text = f'{roman[0]} {items[0]}'
-        for i in items[1:-1]:
-            new_text += f'{separator} ' + roman[items.index(i)] + ' ' + i
-        if items[-1].split(' ')[0]!=last_separator:
-            # If the first word of the last item isn't 'and' or 'y', then:
-            # last = items[-1].split(f' {last_separator} ')
-            # new_text += f'{separator} ' + roman[len(items)-1] + ' ' + last[0]
-            # new_text += f'{separator} {last_separator} ' + roman[len(items)] + ' ' + last[1]
-            new_text += f'{separator} {last_separator} ' + roman[len(items)-1] + ' ' + items[-1]
-        elif len(re.findall(f'{last_separator} ', items[-1]))>1:
-            last = re.sub(f'{last_separator} ', '', items[-1], count=1)
-            new_text += f'{separator} {last_separator} ' + roman[len(items) - 1] + ' ' + last
-        else:
-            last = items[-1].split(f'{last_separator} ')
-            new_text += f'{separator} {last_separator} ' + roman[len(items)-1] + ' ' + last[1]
+    output_text.config(state=tk.NORMAL)
+    output_text.delete('1.0', tk.END)
+    output_text.insert(tk.END, result)
 
-    # Print in the console and insert the recompiled text into the clipboard
-    print(f'{new_text}\n\n')
-    win32clipboard.EmptyClipboard()
-    win32clipboard.SetClipboardText(new_text)
-    win32clipboard.CloseClipboard()
-    input('PRESS ENTER TO PERFORM AGAIN\n')
+
+def copy_to_clipboard():
+    """Copy the output text to the system clipboard."""
+    result = output_text.get('1.0', tk.END).strip()
+    if result:
+        root.clipboard_clear()
+        root.clipboard_append(result)
+        root.update()
+
+
+def clear_all():
+    """Clear both input and output areas."""
+    input_text.delete('1.0', tk.END)
+    output_text.config(state=tk.NORMAL)
+    output_text.delete('1.0', tk.END)
+
+
+# ── Main window ────────────────────────────────────────────────────────────────
+root = tk.Tk()
+root.title("Elements' Enumeration")
+root.resizable(True, True)
+
+PAD = {'padx': 8, 'pady': 4}
+
+# ── Input area ─────────────────────────────────────────────────────────────────
+input_frame = ttk.LabelFrame(root, text='Input Text', padding=8)
+input_frame.grid(row=0, column=0, sticky='nsew', **PAD)
+
+input_text = tk.Text(input_frame, height=6, width=64, wrap=tk.WORD)
+input_text.pack(fill=tk.BOTH, expand=True)
+
+# ── Options ────────────────────────────────────────────────────────────────────
+options_frame = ttk.LabelFrame(root, text='Options', padding=8)
+options_frame.grid(row=1, column=0, sticky='ew', **PAD)
+
+# Input separator
+ttk.Label(options_frame, text='Input separator:').grid(
+    row=0, column=0, sticky='w', padx=4, pady=3)
+input_separator = tk.StringVar(value=',')
+for col, (lbl, val) in enumerate(
+        [('Comma  ,', ','), ('Semicolon  ;', ';'), ('Newline  \\n', '\n')], start=1):
+    ttk.Radiobutton(options_frame, text=lbl, variable=input_separator,
+                    value=val).grid(row=0, column=col, padx=8, sticky='w')
+
+# Output separator
+ttk.Label(options_frame, text='Output separator:').grid(
+    row=1, column=0, sticky='w', padx=4, pady=3)
+output_separator = tk.StringVar(value=';')
+for col, (lbl, val) in enumerate(
+        [('Comma  ,', ','), ('Semicolon  ;', ';'), ('Newline  \\n', '\n')], start=1):
+    ttk.Radiobutton(options_frame, text=lbl, variable=output_separator,
+                    value=val).grid(row=1, column=col, padx=8, sticky='w')
+
+# Numbering format
+ttk.Label(options_frame, text='Numbering:').grid(
+    row=2, column=0, sticky='w', padx=4, pady=3)
+numbering = tk.StringVar(value='(i)')
+ttk.Radiobutton(options_frame, text='(i)  →  (i), (ii), (iii)…',
+                variable=numbering, value='(i)').grid(
+    row=2, column=1, columnspan=2, padx=8, sticky='w')
+ttk.Radiobutton(options_frame, text='i)   →  i), ii), iii)…',
+                variable=numbering, value='i)').grid(
+    row=2, column=3, padx=8, sticky='w')
+
+# Spanish checkbox
+spanish = tk.BooleanVar(value=False)
+ttk.Checkbutton(options_frame, text='Spanish  (use "y" instead of "and")',
+                variable=spanish).grid(
+    row=3, column=0, columnspan=4, sticky='w', padx=4, pady=3)
+
+# ── Buttons ────────────────────────────────────────────────────────────────────
+btn_frame = ttk.Frame(root)
+btn_frame.grid(row=2, column=0, pady=4)
+
+ttk.Button(btn_frame, text='Enumerate', command=process_text).grid(
+    row=0, column=0, padx=8)
+ttk.Button(btn_frame, text='Copy to Clipboard', command=copy_to_clipboard).grid(
+    row=0, column=1, padx=8)
+ttk.Button(btn_frame, text='Clear', command=clear_all).grid(
+    row=0, column=2, padx=8)
+
+# ── Output area ────────────────────────────────────────────────────────────────
+output_frame = ttk.LabelFrame(root, text='Result', padding=8)
+output_frame.grid(row=3, column=0, sticky='nsew', **PAD)
+
+output_text = tk.Text(output_frame, height=6, width=64, wrap=tk.WORD)
+output_text.pack(fill=tk.BOTH, expand=True)
+
+# ── Grid weights (allow resizing) ──────────────────────────────────────────────
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+root.rowconfigure(3, weight=1)
+
+root.mainloop()

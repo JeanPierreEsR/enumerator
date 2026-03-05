@@ -40,7 +40,9 @@ def process_text():
         messagebox.showwarning('Warning', f'Too many items (max {len(roman_paren)}).')
         return
 
-    roman = roman_paren if numbering.get() == '(i)' else roman_close
+    num = numbering.get()
+    skip = num == 'none'
+    roman = roman_paren if num == '(i)' else roman_close
     last_sep = 'y' if spanish.get() else 'and'
 
     if lowercase_subsequent.get():
@@ -52,7 +54,12 @@ def process_text():
     else:
         join = f'{out_sep} '
 
-    if len(items) == 1:
+    if skip:
+        if len(items) == 1:
+            result = items[0]
+        else:
+            result = join.join(items[:-1]) + join + f'{last_sep} {items[-1]}'
+    elif len(items) == 1:
         result = f'{roman[0]} {items[0]}'
     else:
         parts = [f'{roman[i]} {item}' for i, item in enumerate(items[:-1])]
@@ -122,9 +129,12 @@ ttk.Label(options_frame, text='Numbering:').grid(
 numbering = tk.StringVar(value='(i)')
 ttk.Radiobutton(options_frame, text='(i)  →  (i), (ii), (iii)…',
                 variable=numbering, value='(i)').grid(
-    row=2, column=1, columnspan=2, padx=8, sticky='w')
+    row=2, column=1, padx=8, sticky='w')
 ttk.Radiobutton(options_frame, text='i)   →  i), ii), iii)…',
                 variable=numbering, value='i)').grid(
+    row=2, column=2, padx=8, sticky='w')
+ttk.Radiobutton(options_frame, text='None  →  skip enumerators',
+                variable=numbering, value='none').grid(
     row=2, column=3, padx=8, sticky='w')
 
 # Spanish checkbox

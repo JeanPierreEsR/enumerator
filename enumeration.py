@@ -9,11 +9,29 @@ import re
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-# Roman numeral sequences
-roman_paren = ['(i)', '(ii)', '(iii)', '(iv)', '(v)', '(vi)', '(vii)', '(viii)',
-               '(ix)', '(x)', '(xi)', '(xii)', '(xiii)']
-roman_close = ['i)', 'ii)', 'iii)', 'iv)', 'v)', 'vi)', 'vii)', 'viii)',
-               'ix)', 'x)', 'xi)', 'xii)', 'xiii)']
+_ROMAN_VALUES = [
+    (1000, 'm'), (900, 'cm'), (500, 'd'), (400, 'cd'),
+    (100,  'c'), (90,  'xc'), (50,  'l'), (40,  'xl'),
+    (10,   'x'), (9,   'ix'), (5,   'v'), (4,   'iv'), (1, 'i'),
+]
+
+
+def to_roman(n):
+    """Convert a positive integer to a lowercase roman numeral string."""
+    result = ''
+    for value, numeral in _ROMAN_VALUES:
+        while n >= value:
+            result += numeral
+            n -= value
+    return result
+
+
+def roman_numerals(count, fmt):
+    """Return a list of *count* roman numeral strings in the requested format."""
+    if fmt == '(i)':
+        return [f'({to_roman(i)})' for i in range(1, count + 1)]
+    else:  # 'i)'
+        return [f'{to_roman(i)})' for i in range(1, count + 1)]
 
 
 def process_text():
@@ -36,13 +54,9 @@ def process_text():
     if not items:
         messagebox.showwarning('Warning', 'No items found after splitting.')
         return
-    if len(items) > len(roman_paren):
-        messagebox.showwarning('Warning', f'Too many items (max {len(roman_paren)}).')
-        return
-
     num = numbering.get()
     skip = num == 'none'
-    roman = roman_paren if num == '(i)' else roman_close
+    roman = roman_numerals(len(items), num)
     last_sep = 'y' if spanish.get() else 'and'
 
     if lowercase_subsequent.get():
